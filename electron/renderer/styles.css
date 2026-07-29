@@ -1,0 +1,149 @@
+:root {
+  --paper: #ece8dc;
+  --ink: #121512;
+  --muted: #64675d;
+  --accent: #d24b35;
+  --teal: #1d6b70;
+  --gold: #c79a3b;
+  --panel: #fffaf0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    linear-gradient(125deg, rgba(29, 107, 112, 0.2), transparent 38%),
+    linear-gradient(315deg, rgba(210, 75, 53, 0.14), transparent 34%),
+    var(--paper);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.panel {
+  width: min(680px, calc(100% - 36px));
+  margin: 42px auto;
+  display: grid;
+  gap: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.mark {
+  width: 54px;
+  height: 54px;
+  display: block;
+  background:
+    linear-gradient(90deg, var(--accent) 0 28%, transparent 28% 39%, var(--teal) 39% 70%, transparent 70%),
+    var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 8px 8px 0 var(--gold);
+}
+
+p {
+  margin: 0;
+  color: var(--muted);
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  line-height: 1.5;
+}
+
+.brand p {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 48px;
+  line-height: 0.96;
+}
+
+h2 {
+  font-size: 26px;
+}
+
+.status,
+.actions,
+.note {
+  border: 2px solid var(--ink);
+  background: rgba(255, 250, 240, 0.9);
+  box-shadow: 14px 14px 0 rgba(18, 21, 18, 0.13);
+}
+
+.status {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+}
+
+.dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #2f8f5b;
+  box-shadow: 0 0 0 6px rgba(47, 143, 91, 0.14);
+}
+
+.status strong {
+  display: block;
+  margin-bottom: 3px;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 18px;
+}
+
+.actions {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+button {
+  min-height: 52px;
+  border: 2px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-weight: 900;
+  box-shadow: 8px 8px 0 var(--accent);
+}
+
+.toggle {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-weight: 800;
+}
+
+.toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--teal);
+}
+
+.note {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}

@@ -1,0 +1,369 @@
+const crypto = require("crypto");
+const fs = require("fs");
+const http = require("http");
+const os = require("os");
+const path = require("path");
+const { execFile } = require("child_process");
+const loginHandler = require("./api/login");
+
+const PORT = Number(process.env.PORT || 4765);
+const DATA_DIR = process.env.AUTO_PHOTOSHOP_DATA_DIR || path.join(__dirname, ".bridge");
+const TOKEN_FILE = path.join(DATA_DIR, "token");
+const OUTPUT_DIR = process.env.AUTO_PHOTOSHOP_OUTPUT_DIR || path.join(__dirname, "outputs");
+const PUBLIC_DIR = path.join(__dirname, "public");
+
+const allowedOrigins = new Set([
+  "http://localhost:3000",
+  "http://localhost:4765",
+  "http://127.0.0.1:4765",
+]);
+
+if (process.env.ALLOWED_ORIGIN) {
+  for (const origin of process.env.ALLOWED_ORIGIN.split(",")) {
+    if (origin.trim()) allowedOrigins.add(origin.trim());
+  }
+}
+
+function ensureToken() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (fs.existsSync(TOKEN_FILE)) return fs.readFileSync(TOKEN_FILE, "utf8").trim();
+  const token = crypto.randomBytes(24).toString("hex");
+  fs.writeFileSync(TOKEN_FILE, token, { encoding: "utf8", mode: 0o600 });
+  return token;
+}
+
+const bridgeToken = ensureToken();
+
+function sendJson(res, status, payload, origin) {
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Headers": "Content-Type, X-Auto-Photoshop-Token",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+  if (origin && allowedOrigins.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  res.writeHead(status, headers);
+  res.end(JSON.stringify(payload));
+}
+
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1_000_000) {
+        reject(new Error("Request body is too large."));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error("Invalid JSON."));
+      }
+    });
+  });
+}
+
+function parseSize(input) {
+  const raw = String(input || "").trim().toLowerCase();
+  const presets = {
+    square: [12, 12],
+    poster: [18, 24],
+    story: [9, 16],
+    reel: [9, 16],
+    thumbnail: [16, 9],
+    banner: [16, 9],
+    a4: [8.27, 11.69],
+  };
+  const ppi = 300;
+  if (presets[raw]) {
+    const [widthInches, heightInches] = presets[raw];
+    return {
+      width: Math.round(widthInches * ppi),
+      height: Math.round(heightInches * ppi),
+      widthInches,
+      heightInches,
+      ppi,
+      label: `${raw.toUpperCase()} / ${widthInches}x${heightInches} in`
+    };
+  }
+
+  const match = raw.match(/(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/);
+  if (!match) throw new Error("Use a size in inches like 12x12, 8.5x11, 4x6, A4, story, poster, or thumbnail.");
+
+  const widthInches = Math.min(Math.max(Number(match[1]), 0.25), 100);
+  const heightInches = Math.min(Math.max(Number(match[2]), 0.25), 100);
+  const width = Math.round(widthInches * ppi);
+  const height = Math.round(heightInches * ppi);
+  return { width, height, widthInches, heightInches, ppi, label: `${widthInches}x${heightInches} in` };
+}
+
+function hashText(text) {
+  return crypto.createHash("sha256").update(text).digest();
+}
+
+function makePlan(prompt, size) {
+  const hash = hashText(`${prompt}|${size.width}|${size.height}`);
+  const palettes = [
+    { name: "Ink Volt", bg: "101216", base: "f5f1e8", accent: "00d1a7", second: "ffba3b", deep: "20242b" },
+    { name: "Gallery Signal", bg: "f2efe6", base: "141414", accent: "c53b2c", second: "28666e", deep: "ddd4c3" },
+    { name: "Night Market", bg: "15120f", base: "fff7df", accent: "f45b69", second: "2ec4b6", deep: "2b2118" },
+    { name: "Studio Chrome", bg: "e8edf0", base: "17191c", accent: "325dff", second: "f0b429", deep: "c9d2d9" },
+    { name: "Editorial Moss", bg: "ebeadf", base: "182018", accent: "5d8a54", second: "d1495b", deep: "ccd0bd" }
+  ];
+  const styles = ["editorial", "premium", "bold", "minimal", "cinematic", "festival", "luxury", "tech"];
+  const palette = palettes[hash[0] % palettes.length];
+  const style = styles[hash[1] % styles.length];
+  const title = prompt.split(/[,.]/)[0].trim().slice(0, 46) || "Custom Design";
+  const subtitle = `Generated from: ${prompt}`.slice(0, 120);
+  return {
+    palette,
+    style,
+    title,
+    subtitle,
+    seed: hash.subarray(0, 4).toString("hex"),
+    motifCount: 5 + (hash[2] % 5),
+    diagonal: hash[3] % 2 === 0,
+  };
+}
+
+function jsxString(value) {
+  return JSON.stringify(String(value || ""));
+}
+
+function buildPhotoshopJsx({ prompt, size, plan, outputPng }) {
+  const safeName = `Auto Photoshop ${plan.seed}`;
+  const titleSize = Math.max(42, Math.round(Math.min(size.width, size.height) * 0.095));
+  const subSize = Math.max(18, Math.round(Math.min(size.width, size.height) * 0.026));
+  const margin = Math.round(Math.min(size.width, size.height) * 0.075);
+  const blockW = Math.round(size.width * 0.72);
+  const blockH = Math.round(size.height * 0.34);
+  const blockX = plan.diagonal ? Math.round(size.width * 0.18) : margin;
+  const blockY = Math.round(size.height * 0.18);
+
+  return `
+#target photoshop
+app.displayDialogs = DialogModes.NO;
+
+function color(hex) {
+  var c = new SolidColor();
+  c.rgb.hexValue = hex;
+  return c;
+}
+
+function fillRect(doc, name, x, y, w, h, hex, opacity) {
+  var layer = doc.artLayers.add();
+  layer.name = name;
+  layer.opacity = opacity;
+  doc.selection.select([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
+  doc.selection.fill(color(hex));
+  doc.selection.deselect();
+  return layer;
+}
+
+function addText(doc, name, text, x, y, size, hex, fontName, width) {
+  var layer = doc.artLayers.add();
+  layer.kind = LayerKind.TEXT;
+  layer.name = name;
+  layer.textItem.contents = text;
+  layer.textItem.position = [x, y];
+  layer.textItem.size = size;
+  layer.textItem.color = color(hex);
+  layer.textItem.font = fontName;
+  layer.textItem.width = width;
+  return layer;
+}
+
+var doc = app.documents.add(${size.width}, ${size.height}, 300, ${jsxString(safeName)}, NewDocumentMode.RGB, DocumentFill.WHITE);
+fillRect(doc, "Background - ${plan.palette.name}", 0, 0, ${size.width}, ${size.height}, "${plan.palette.bg}", 100);
+fillRect(doc, "Editorial field", ${blockX}, ${blockY}, ${blockW}, ${blockH}, "${plan.palette.deep}", 92);
+fillRect(doc, "Signal stripe", ${Math.round(size.width * 0.06)}, ${Math.round(size.height * 0.08)}, ${Math.max(18, Math.round(size.width * 0.025))}, ${Math.round(size.height * 0.84)}, "${plan.palette.accent}", 100);
+fillRect(doc, "Secondary anchor", ${Math.round(size.width * 0.64)}, ${Math.round(size.height * 0.66)}, ${Math.round(size.width * 0.27)}, ${Math.round(size.height * 0.07)}, "${plan.palette.second}", 100);
+
+for (var i = 0; i < ${plan.motifCount}; i++) {
+  var x = (${margin} + i * ${Math.round(size.width * 0.13)}) % ${size.width};
+  var y = (${Math.round(size.height * 0.58)} + i * ${Math.round(size.height * 0.047)}) % ${size.height};
+  fillRect(doc, "Rhythm mark " + (i + 1), x, y, ${Math.max(28, Math.round(size.width * 0.05))}, ${Math.max(10, Math.round(size.height * 0.012))}, i % 2 ? "${plan.palette.base}" : "${plan.palette.accent}", 70);
+}
+
+addText(doc, "Title", ${jsxString(plan.title.toUpperCase())}, ${margin}, ${Math.round(size.height * 0.32)}, ${titleSize}, "${plan.palette.base}", "Arial-BoldMT", ${Math.round(size.width * 0.82)});
+addText(doc, "Style Label", ${jsxString(`${plan.style.toUpperCase()} / ${size.label}`)}, ${margin}, ${Math.round(size.height * 0.16)}, ${subSize}, "${plan.palette.second}", "ArialMT", ${Math.round(size.width * 0.7)});
+addText(doc, "Prompt Note", ${jsxString(plan.subtitle)}, ${margin}, ${Math.round(size.height * 0.78)}, ${subSize}, "${plan.palette.base}", "ArialMT", ${Math.round(size.width * 0.78)});
+
+var outFile = new File(${jsxString(outputPng)});
+var opts = new ExportOptionsSaveForWeb();
+opts.format = SaveDocumentType.PNG;
+opts.PNG8 = false;
+opts.transparency = false;
+doc.exportDocument(outFile, ExportType.SAVEFORWEB, opts);
+`;
+}
+
+function runPhotoshopJsx(jsx) {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  const jsxPath = path.join(os.tmpdir(), `auto-photoshop-${Date.now()}.jsx`);
+  fs.writeFileSync(jsxPath, jsx, "utf8");
+
+  const psCommand = [
+    "$ErrorActionPreference = 'Stop'",
+    `$app = New-Object -ComObject Photoshop.Application`,
+    "$app.Visible = $true",
+    `$code = Get-Content -LiteralPath '${jsxPath.replace(/'/g, "''")}' -Raw`,
+    "$app.DoJavaScript($code)"
+  ].join("; ");
+
+  return new Promise((resolve, reject) => {
+    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psCommand], { timeout: 120000 }, (error, stdout, stderr) => {
+      fs.rm(jsxPath, { force: true }, () => {});
+      if (error) {
+        reject(new Error(stderr || stdout || error.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function openPhotoshop() {
+  const psCommand = [
+    "$ErrorActionPreference = 'Stop'",
+    "$app = New-Object -ComObject Photoshop.Application",
+    "$app.Visible = $true"
+  ].join("; ");
+
+  return new Promise((resolve, reject) => {
+    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psCommand], { timeout: 30000 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr || stdout || error.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function openOutputFolder() {
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  return new Promise((resolve, reject) => {
+    execFile("explorer.exe", [OUTPUT_DIR], (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function serveStatic(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const requested = url.pathname === "/" ? "/index.html" : url.pathname;
+  const filePath = path.normalize(path.join(PUBLIC_DIR, requested));
+  if (!filePath.startsWith(PUBLIC_DIR)) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+  fs.readFile(filePath, (error, data) => {
+    if (error) {
+      res.writeHead(404);
+      res.end("Not found");
+      return;
+    }
+    const ext = path.extname(filePath);
+    const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml" };
+    res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream" });
+    res.end(data);
+  });
+}
+
+function createBridgeServer() {
+  return http.createServer(async (req, res) => {
+  const origin = req.headers.origin;
+  if (req.method === "OPTIONS") return sendJson(res, 204, {}, origin);
+
+  try {
+    if (req.url === "/api/login") {
+      return loginHandler(req, res);
+    }
+
+    if (req.url === "/health" && req.method === "GET") {
+      return sendJson(res, 200, { ok: true, app: "Auto Photoshop Bridge", port: PORT }, origin);
+    }
+
+    if (req.url === "/pair" && req.method === "POST") {
+      return sendJson(res, 200, { ok: true, token: bridgeToken, message: "This device approved Photoshop automation." }, origin);
+    }
+
+    if (req.url === "/open-photoshop" && req.method === "POST") {
+      const token = req.headers["x-auto-photoshop-token"];
+      if (token !== bridgeToken) return sendJson(res, 401, { ok: false, error: "Bridge permission is required." }, origin);
+
+      await openPhotoshop();
+      return sendJson(res, 200, { ok: true, message: "Photoshop opened." }, origin);
+    }
+
+    if (req.url === "/open-output-folder" && req.method === "POST") {
+      const token = req.headers["x-auto-photoshop-token"];
+      if (token !== bridgeToken) return sendJson(res, 401, { ok: false, error: "Bridge permission is required." }, origin);
+
+      await openOutputFolder();
+      return sendJson(res, 200, { ok: true, outputDir: OUTPUT_DIR }, origin);
+    }
+
+    if (req.url === "/design" && req.method === "POST") {
+      const token = req.headers["x-auto-photoshop-token"];
+      if (token !== bridgeToken) return sendJson(res, 401, { ok: false, error: "Bridge permission is required." }, origin);
+
+      const body = await readJson(req);
+      const prompt = String(body.prompt || "").trim();
+      if (prompt.length < 8) throw new Error("Please provide a more detailed design prompt.");
+
+      const size = parseSize(body.size);
+      const plan = makePlan(prompt, size);
+      const fileName = `auto-photoshop-${plan.seed}-${size.width}x${size.height}.png`;
+      const outputPng = path.join(OUTPUT_DIR, fileName);
+      const jsx = buildPhotoshopJsx({ prompt, size, plan, outputPng });
+
+      await runPhotoshopJsx(jsx);
+      return sendJson(res, 200, { ok: true, outputPng, plan }, origin);
+    }
+
+    serveStatic(req, res);
+  } catch (error) {
+    sendJson(res, 500, { ok: false, error: error.message }, origin);
+  }
+  });
+}
+
+function startBridge(options = {}) {
+  const port = Number(options.port || PORT);
+  const host = options.host || "127.0.0.1";
+  const server = createBridgeServer();
+
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, () => {
+      server.off("error", reject);
+      console.log(`Auto Photoshop bridge running at http://${host}:${port}`);
+      console.log(`Output folder: ${OUTPUT_DIR}`);
+      resolve({ server, port, host, outputDir: OUTPUT_DIR });
+    });
+  });
+}
+
+if (require.main === module) {
+  startBridge().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  startBridge,
+  createBridgeServer,
+  parseSize,
+  makePlan,
+  buildPhotoshopJsx,
+};

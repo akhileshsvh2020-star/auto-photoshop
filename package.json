@@ -1,0 +1,49 @@
+{
+  "name": "auto-photoshop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Photoshop automation bridge plus a deployable web UI.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "electron": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.autophotoshop.connector",
+    "productName": "Auto Photoshop Connector",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "server.js",
+      "auth.js",
+      "auth-users.json",
+      "auth-users.backup.json",
+      "api/**/*",
+      "scripts/**/*",
+      "electron/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

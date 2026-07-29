@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Auto Photoshop Connector</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="panel">
+      <div class="brand">
+        <span class="mark"></span>
+        <div>
+          <p>Photoshop Device Connector</p>
+          <h1>Auto Photoshop Connector</h1>
+        </div>
+      </div>
+
+      <section class="status">
+        <span class="dot"></span>
+        <div>
+          <strong>Connector is running</strong>
+          <p id="url">Checking local server...</p>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button id="openWeb">Open Local Web App</button>
+        <label class="toggle">
+          <input id="startup" type="checkbox">
+          <span>Start connector when Windows starts</span>
+        </label>
+      </section>
+
+      <section class="note">
+        <h2>How customers use it</h2>
+        <p>Keep this connector installed on the computer that has Photoshop. Your Vercel website will detect it, ask for permission, and send approved design prompts to Photoshop.</p>
+      </section>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

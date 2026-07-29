@@ -1,0 +1,12 @@
+[
+  {
+    "email": "demo@autophotoshop.local",
+    "salt": "demo-local-salt",
+    "hash": "b6a5ae831ce8d404f70fbd3f5571a776741518f8315a88fdb7808f145fd736da"
+  },
+  {
+    "email": "akhileshsvh2020@gmail.com",
+    "salt": "c453f16a7910c6e9a2c106d872faafe5",
+    "hash": "f454f7b94d6f3e6c54491f4f95e07a2fa6eaaac76df504e44874c843afdefe6d"
+  }
+]

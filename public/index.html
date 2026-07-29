@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Auto Photoshop Studio</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="login-shell" id="loginShell">
+      <section class="login-panel" aria-label="Login">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <p class="eyebrow">Business Access</p>
+            <h1>Login</h1>
+          </div>
+        </div>
+
+        <form class="login-form" id="loginForm">
+          <label for="loginEmail">
+            Mail
+            <input id="loginEmail" name="email" type="email" autocomplete="email" placeholder="name@business.com" required>
+          </label>
+          <label for="loginPassword">
+            Password
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Enter password" required>
+          </label>
+          <button class="primary-button" type="submit">Login</button>
+          <p class="login-error" id="loginError" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <main class="shell app-shell hidden" id="appShell">
+      <section class="workspace" aria-label="Auto Photoshop Studio">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <p class="eyebrow">Local Photoshop Automation</p>
+            <h1>Auto Photoshop Studio</h1>
+          </div>
+          <button class="ghost-button logout-button" id="logoutButton" type="button">Logout</button>
+        </div>
+
+        <div class="status-panel">
+          <div>
+            <span class="status-dot" id="statusDot"></span>
+            <div>
+              <strong id="statusText">click download button to make website work fully</strong>
+              <span class="connector-state" id="connectorState">not connected</span>
+            </div>
+          </div>
+          <div class="status-actions">
+            <a class="ghost-link" id="downloadLink" href="/connector.html">Download Connector</a>
+            <button class="ghost-button" id="pairButton" type="button">Allow this device</button>
+          </div>
+        </div>
+
+        <section class="install-panel" id="installPanel">
+          <div>
+            <p class="eyebrow">Required Once Per Photoshop Computer</p>
+            <h2>Install the desktop connector</h2>
+            <p>The connector runs locally on this computer, receives your approved prompts, and sends the design instructions to installed Photoshop.</p>
+          </div>
+          <p class="install-copy">Click download to install the connector on this computer, then return here and allow this device.</p>
+        </section>
+
+        <form class="composer locked" id="designForm">
+          <label for="prompt">Design Prompt</label>
+          <textarea id="prompt" name="prompt" placeholder="Luxury skincare launch poster with pearl texture, emerald accents, bold product title, clean premium typography"></textarea>
+
+          <div class="form-grid">
+            <label>
+              Size in inches
+              <input id="size" name="size" value="12x12" placeholder="12x12, 8.5x11, 4x6">
+            </label>
+            <label>
+              Resolution
+              <input id="resolution" name="resolution" value="300 pixels/inch" readonly aria-readonly="true">
+            </label>
+          </div>
+
+          <button class="primary-button" id="createButton" type="submit" disabled>
+            <span>Create in Photoshop</span>
+          </button>
+        </form>
+
+        <section class="result" id="result" aria-live="polite">
+          <p>Install Auto Photoshop Connector on this computer, approve access, then send a prompt.</p>
+        </section>
+      </section>
+
+      <aside class="preview" aria-label="Design system preview">
+        <div class="canvas-card">
+          <div class="stripe"></div>
+          <div class="block"></div>
+          <h2>Prompt to layered Photoshop design</h2>
+          <p>Hosted UI. Local approval. Native Photoshop document creation.</p>
+        </div>
+      </aside>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

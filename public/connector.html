@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Download Auto Photoshop Connector</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="download-shell">
+      <section class="download-panel">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <p class="eyebrow">Desktop Connector</p>
+            <h1>Download Connector</h1>
+          </div>
+        </div>
+
+        <p class="download-copy">Install Auto Photoshop Connector on this computer so the website can send your approved design prompts to Photoshop.</p>
+
+        <a class="download-button" id="downloadInstallerButton" href="/downloads/AutoPhotoshopConnectorSetup.exe" download>
+          Download Windows Connector
+        </a>
+
+        <p class="download-note">After the download finishes, open the installer. The connector will run locally on this Photoshop computer.</p>
+      </section>
+    </main>
+
+    <div class="notice-overlay hidden" id="downloadNotice" role="dialog" aria-modal="true" aria-labelledby="downloadNoticeTitle">
+      <section class="notice-panel">
+        <div class="notice-symbol" aria-hidden="true">!</div>
+        <h2 id="downloadNoticeTitle">Notice</h2>
+        <p>Your Auto Photoshop Connector download has started.</p>
+        <p>After the download is complete, search for "AutoPhotoshopConnector" on your computer and open it so the connector can connect with this website.</p>
+        <p>Windows may show a SmartScreen warning because this connector is not signed yet. If that appears, click "More info", then click "Run anyway".</p>
+        <button class="primary-button notice-button" id="noticeCloseButton" type="button">Got it</button>
+      </section>
+    </div>
+
+    <script>
+      const downloadButton = document.querySelector("#downloadInstallerButton");
+      const notice = document.querySelector("#downloadNotice");
+      const closeButton = document.querySelector("#noticeCloseButton");
+
+      downloadButton.addEventListener("click", () => {
+        window.setTimeout(() => {
+          notice.classList.remove("hidden");
+        }, 300);
+      });
+
+      closeButton.addEventListener("click", () => {
+        notice.classList.add("hidden");
+      });
+    </script>
+  </body>
+</html>

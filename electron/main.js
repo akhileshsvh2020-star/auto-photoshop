@@ -8,12 +8,12 @@ const {
   shell,
   ipcMain,
 } = require("electron");
-const { startBridge } = require("../server");
 
 const CONNECTOR_PORT = Number(process.env.PORT || 4765);
 let mainWindow;
 let tray;
 let bridgeInfo;
+let startBridge;
 
 function makeTrayIcon() {
   const svg = `
@@ -88,6 +88,9 @@ if (!gotLock) {
   app.on("second-instance", () => showWindow());
 
   app.whenReady().then(async () => {
+    process.env.AUTO_PHOTOSHOP_DATA_DIR = path.join(app.getPath("userData"), "bridge");
+    process.env.AUTO_PHOTOSHOP_OUTPUT_DIR = path.join(app.getPath("pictures"), "Auto Photoshop");
+    ({ startBridge } = require("../server"));
     bridgeInfo = await startBridge({ port: CONNECTOR_PORT });
     createTray();
     createWindow();

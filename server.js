@@ -16,6 +16,7 @@ const allowedOrigins = new Set([
   "http://localhost:3000",
   "http://localhost:4765",
   "http://127.0.0.1:4765",
+  "https://auto-photoshop.vercel.app",
 ]);
 
 if (process.env.ALLOWED_ORIGIN) {

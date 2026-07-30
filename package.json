@@ -25,6 +25,10 @@
       "scripts/**/*",
       "electron/**/*",
       "public/**/*",
+      "!public/downloads/**/*",
+      "!release/**/*",
+      "!outputs/**/*",
+      "!.bridge/**/*",
       "package.json"
     ],
     "win": {

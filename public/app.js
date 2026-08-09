@@ -31,6 +31,7 @@ function isLoggedIn() {
 function showApp() {
   els.loginShell.classList.add("hidden");
   els.appShell.classList.remove("hidden");
+  setDeviceAllowed(Boolean(localStorage.getItem(TOKEN_KEY)));
   checkBridge();
 }
 
@@ -58,6 +59,12 @@ function setStatus(ok, text) {
 
 function setResult(html) {
   els.result.innerHTML = html;
+}
+
+function setDeviceAllowed(allowed) {
+  els.pairButton.textContent = allowed ? "Device allowed" : "Allow this device";
+  els.pairButton.disabled = allowed;
+  els.pairButton.classList.toggle("allowed", allowed);
 }
 
 function renderProgress() {
@@ -162,6 +169,7 @@ els.pairButton.addEventListener("click", async () => {
   try {
     const data = await bridgeFetch("/pair", { method: "POST", body: "{}" });
     localStorage.setItem(TOKEN_KEY, data.token);
+    setDeviceAllowed(true);
     setStatus(true, "Device allowed");
     setResult("<strong>Permission granted.</strong> This browser can now send approved designs to Photoshop on this computer.");
   } catch (error) {

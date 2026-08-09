@@ -299,6 +299,17 @@ input[readonly] {
   transform: none;
 }
 
+.ghost-button:disabled {
+  cursor: default;
+  opacity: 0.82;
+  transform: none;
+}
+
+.ghost-button.allowed {
+  background: var(--ok);
+  color: #fffdf5;
+}
+
 .install-panel {
   display: grid;
   gap: 16px;

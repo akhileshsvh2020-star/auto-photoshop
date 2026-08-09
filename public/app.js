@@ -15,6 +15,8 @@ const els = {
   createButton: document.querySelector("#createButton"),
   prompt: document.querySelector("#prompt"),
   size: document.querySelector("#size"),
+  resolution: document.querySelector("#resolution"),
+  resolutionError: document.querySelector("#resolutionError"),
   result: document.querySelector("#result"),
 };
 
@@ -23,6 +25,7 @@ const TOKEN_KEY = "autoPhotoshopToken";
 const BRIDGE_URL = "http://127.0.0.1:4765";
 let bridgeOnline = false;
 let lastPrompt = "";
+let resolutionValid = true;
 
 function isLoggedIn() {
   return Boolean(sessionStorage.getItem(LOGIN_KEY));
@@ -54,7 +57,7 @@ function setStatus(ok, text) {
   els.statusText.textContent = text;
   els.installPanel.classList.toggle("hidden", ok);
   els.designForm.classList.toggle("locked", !ok);
-  els.createButton.disabled = !ok;
+  updateCreateButtonState();
 }
 
 function setResult(html) {
@@ -65,6 +68,27 @@ function setDeviceAllowed(allowed) {
   els.pairButton.textContent = allowed ? "Device allowed" : "Allow this device";
   els.pairButton.disabled = allowed;
   els.pairButton.classList.toggle("allowed", allowed);
+}
+
+function parseResolution() {
+  const value = Number(els.resolution.value);
+  if (!Number.isInteger(value)) return { ok: false, error: "Resolution must be a whole number between 72 and 500 pixels/inch." };
+  if (value < 72) return { ok: false, error: "Resolution is too low. Minimum allowed resolution is 72 pixels/inch." };
+  if (value > 500) return { ok: false, error: "Resolution is too high. Maximum allowed resolution is 500 pixels/inch." };
+  return { ok: true, value };
+}
+
+function validateResolution() {
+  const result = parseResolution();
+  resolutionValid = result.ok;
+  els.resolution.classList.toggle("input-error", !result.ok);
+  els.resolutionError.textContent = result.ok ? "" : result.error;
+  updateCreateButtonState();
+  return result;
+}
+
+function updateCreateButtonState() {
+  els.createButton.disabled = !bridgeOnline || !resolutionValid;
 }
 
 function renderProgress() {
@@ -180,6 +204,9 @@ els.pairButton.addEventListener("click", async () => {
 
 els.designForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const resolution = validateResolution();
+  if (!resolution.ok) return;
+
   els.createButton.disabled = true;
   els.createButton.querySelector("span").textContent = "Creating in Photoshop...";
   lastPrompt = els.prompt.value.trim();
@@ -191,6 +218,7 @@ els.designForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({
         prompt: els.prompt.value,
         size: els.size.value,
+        resolution: resolution.value,
       }),
     });
 
@@ -198,11 +226,13 @@ els.designForm.addEventListener("submit", async (event) => {
   } catch (error) {
     renderError(error.message);
   } finally {
-    els.createButton.disabled = !bridgeOnline;
+    updateCreateButtonState();
     els.createButton.querySelector("span").textContent = "Create in Photoshop";
     checkBridge();
   }
 });
+
+els.resolution.addEventListener("input", validateResolution);
 
 els.result.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
@@ -228,6 +258,7 @@ els.result.addEventListener("click", async (event) => {
 });
 
 if (isLoggedIn()) {
+  validateResolution();
   showApp();
 } else {
   showLogin();

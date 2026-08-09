@@ -66,7 +66,15 @@ function readJson(req) {
   });
 }
 
-function parseSize(input) {
+function parseResolution(input) {
+  const ppi = Number(input || 300);
+  if (!Number.isInteger(ppi)) throw new Error("Resolution must be a whole number between 72 and 500 pixels/inch.");
+  if (ppi < 72) throw new Error("Resolution is too low. Minimum allowed resolution is 72 pixels/inch.");
+  if (ppi > 500) throw new Error("Resolution is too high. Maximum allowed resolution is 500 pixels/inch.");
+  return ppi;
+}
+
+function parseSize(input, resolution) {
   const raw = String(input || "").trim().toLowerCase();
   const presets = {
     square: [12, 12],
@@ -77,7 +85,7 @@ function parseSize(input) {
     banner: [16, 9],
     a4: [8.27, 11.69],
   };
-  const ppi = 300;
+  const ppi = parseResolution(resolution);
   if (presets[raw]) {
     const [widthInches, heightInches] = presets[raw];
     return {
@@ -176,7 +184,7 @@ function addText(doc, name, text, x, y, size, hex, fontName, width) {
   return layer;
 }
 
-var doc = app.documents.add(${size.width}, ${size.height}, 300, ${jsxString(safeName)}, NewDocumentMode.RGB, DocumentFill.WHITE);
+var doc = app.documents.add(${size.width}, ${size.height}, ${size.ppi}, ${jsxString(safeName)}, NewDocumentMode.RGB, DocumentFill.WHITE);
 fillRect(doc, "Background - ${plan.palette.name}", 0, 0, ${size.width}, ${size.height}, "${plan.palette.bg}", 100);
 fillRect(doc, "Editorial field", ${blockX}, ${blockY}, ${blockW}, ${blockH}, "${plan.palette.deep}", 92);
 fillRect(doc, "Signal stripe", ${Math.round(size.width * 0.06)}, ${Math.round(size.height * 0.08)}, ${Math.max(18, Math.round(size.width * 0.025))}, ${Math.round(size.height * 0.84)}, "${plan.palette.accent}", 100);
@@ -321,7 +329,7 @@ function createBridgeServer() {
       const prompt = String(body.prompt || "").trim();
       if (prompt.length < 8) throw new Error("Please provide a more detailed design prompt.");
 
-      const size = parseSize(body.size);
+      const size = parseSize(body.size, body.resolution);
       const plan = makePlan(prompt, size);
       const fileName = `auto-photoshop-${plan.seed}-${size.width}x${size.height}.png`;
       const outputPng = path.join(OUTPUT_DIR, fileName);
@@ -364,6 +372,7 @@ if (require.main === module) {
 module.exports = {
   startBridge,
   createBridgeServer,
+  parseResolution,
   parseSize,
   makePlan,
   buildPhotoshopJsx,

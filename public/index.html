@@ -77,7 +77,8 @@
             </label>
             <label>
               Resolution
-              <input id="resolution" name="resolution" value="300 pixels/inch" readonly aria-readonly="true">
+              <input id="resolution" name="resolution" type="number" min="72" max="500" step="1" value="300" aria-describedby="resolutionError">
+              <span class="field-error" id="resolutionError" aria-live="polite"></span>
             </label>
           </div>
 

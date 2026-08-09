@@ -4,3 +4,5 @@ outputs/
 .bridge/
 *.log
 public/downloads/*.exe
+.graphify_venv/
+graphify-out/

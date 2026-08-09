@@ -74,8 +74,25 @@ function parseResolution(input) {
   return ppi;
 }
 
-function parseSize(input, resolution) {
+function parseSizeUnit(input) {
+  const unit = String(input || "in").trim().toLowerCase();
+  if (unit === "in" || unit === "inch" || unit === "inches") return "in";
+  if (unit === "cm" || unit === "cms" || unit === "centimeter" || unit === "centimeters") return "cm";
+  throw new Error("Select a valid size unit: inches or cm.");
+}
+
+function toInches(value, unit) {
+  return unit === "cm" ? value / 2.54 : value;
+}
+
+function formatSizeLabel(width, height, unit) {
+  if (unit === "cm") return `${width}x${height} cm`;
+  return `${width}x${height} in`;
+}
+
+function parseSize(input, resolution, sizeUnit) {
   const raw = String(input || "").trim().toLowerCase();
+  const unit = parseSizeUnit(sizeUnit);
   const presets = {
     square: [12, 12],
     poster: [18, 24],
@@ -99,13 +116,15 @@ function parseSize(input, resolution) {
   }
 
   const match = raw.match(/(\d+(?:\.\d+)?)\s*(?:x|by|\*)\s*(\d+(?:\.\d+)?)/);
-  if (!match) throw new Error("Use a size in inches like 12x12, 8.5x11, 4x6, A4, story, poster, or thumbnail.");
+  if (!match) throw new Error("Use a size like 12x12 in inches or 30x30 in cm. You can also use A4, story, poster, or thumbnail.");
 
-  const widthInches = Math.min(Math.max(Number(match[1]), 0.25), 100);
-  const heightInches = Math.min(Math.max(Number(match[2]), 0.25), 100);
+  const widthValue = Number(match[1]);
+  const heightValue = Number(match[2]);
+  const widthInches = Math.min(Math.max(toInches(widthValue, unit), 0.25), 100);
+  const heightInches = Math.min(Math.max(toInches(heightValue, unit), 0.25), 100);
   const width = Math.round(widthInches * ppi);
   const height = Math.round(heightInches * ppi);
-  return { width, height, widthInches, heightInches, ppi, label: `${widthInches}x${heightInches} in` };
+  return { width, height, widthInches, heightInches, ppi, unit, label: formatSizeLabel(widthValue, heightValue, unit) };
 }
 
 function hashText(text) {
@@ -329,7 +348,7 @@ function createBridgeServer() {
       const prompt = String(body.prompt || "").trim();
       if (prompt.length < 8) throw new Error("Please provide a more detailed design prompt.");
 
-      const size = parseSize(body.size, body.resolution);
+      const size = parseSize(body.size, body.resolution, body.sizeUnit);
       const plan = makePlan(prompt, size);
       const fileName = `auto-photoshop-${plan.seed}-${size.width}x${size.height}.png`;
       const outputPng = path.join(OUTPUT_DIR, fileName);
@@ -373,6 +392,7 @@ module.exports = {
   startBridge,
   createBridgeServer,
   parseResolution,
+  parseSizeUnit,
   parseSize,
   makePlan,
   buildPhotoshopJsx,

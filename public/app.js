@@ -15,6 +15,7 @@ const els = {
   createButton: document.querySelector("#createButton"),
   prompt: document.querySelector("#prompt"),
   size: document.querySelector("#size"),
+  sizeUnit: document.querySelector("#sizeUnit"),
   resolution: document.querySelector("#resolution"),
   resolutionError: document.querySelector("#resolutionError"),
   result: document.querySelector("#result"),
@@ -89,6 +90,14 @@ function validateResolution() {
 
 function updateCreateButtonState() {
   els.createButton.disabled = !bridgeOnline || !resolutionValid;
+}
+
+function updateSizePlaceholder() {
+  if (els.sizeUnit.value === "cm") {
+    els.size.placeholder = "30x30, 21x29.7, 10x15";
+    return;
+  }
+  els.size.placeholder = "12x12, 8.5x11, 4x6";
 }
 
 function renderProgress() {
@@ -218,6 +227,7 @@ els.designForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({
         prompt: els.prompt.value,
         size: els.size.value,
+        sizeUnit: els.sizeUnit.value,
         resolution: resolution.value,
       }),
     });
@@ -233,6 +243,7 @@ els.designForm.addEventListener("submit", async (event) => {
 });
 
 els.resolution.addEventListener("input", validateResolution);
+els.sizeUnit.addEventListener("change", updateSizePlaceholder);
 
 els.result.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
@@ -259,7 +270,9 @@ els.result.addEventListener("click", async (event) => {
 
 if (isLoggedIn()) {
   validateResolution();
+  updateSizePlaceholder();
   showApp();
 } else {
+  updateSizePlaceholder();
   showLogin();
 }

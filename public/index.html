@@ -72,7 +72,16 @@
 
           <div class="form-grid">
             <label>
-              Size in inches
+              <span class="unit-label">
+                Size in
+                <span class="unit-picker">
+                  <select id="sizeUnit" name="sizeUnit" aria-label="Size unit">
+                    <option value="in" selected>inches</option>
+                    <option value="cm">cm's</option>
+                  </select>
+                  <span class="unit-arrow" aria-hidden="true">▲</span>
+                </span>
+              </span>
               <input id="size" name="size" value="12x12" placeholder="12x12, 8.5x11, 4x6">
             </label>
             <label>

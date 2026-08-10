@@ -1,6 +1,6 @@
 {
   "name": "auto-photoshop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Local Photoshop automation bridge plus a deployable web UI.",
   "main": "electron/main.js",

@@ -565,6 +565,25 @@ input[readonly] {
   padding: clamp(22px, 5vw, 44px);
 }
 
+.back-link {
+  width: fit-content;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid var(--ink);
+  background: var(--gold);
+  color: var(--ink);
+  font-family: "Trebuchet MS", Verdana, sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  transform: translate(-2px, -2px);
+}
+
 .download-panel h1 {
   font-size: clamp(42px, 8vw, 84px);
 }

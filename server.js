@@ -7,9 +7,16 @@ const { execFile } = require("child_process");
 const loginHandler = require("./api/login");
 
 const PORT = Number(process.env.PORT || 4765);
-const DATA_DIR = process.env.AUTO_PHOTOSHOP_DATA_DIR || path.join(__dirname, ".bridge");
+const isPackagedAsar = __dirname.toLowerCase().includes("app.asar");
+const appDataRoot = process.env.LOCALAPPDATA || os.tmpdir();
+const picturesRoot = path.join(os.homedir(), "Pictures");
+const DATA_DIR = process.env.AUTO_PHOTOSHOP_DATA_DIR || (
+  isPackagedAsar ? path.join(appDataRoot, "Auto Photoshop Connector", "bridge") : path.join(__dirname, ".bridge")
+);
 const TOKEN_FILE = path.join(DATA_DIR, "token");
-const OUTPUT_DIR = process.env.AUTO_PHOTOSHOP_OUTPUT_DIR || path.join(__dirname, "outputs");
+const OUTPUT_DIR = process.env.AUTO_PHOTOSHOP_OUTPUT_DIR || (
+  isPackagedAsar ? path.join(picturesRoot, "Auto Photoshop") : path.join(__dirname, "outputs")
+);
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const allowedOrigins = new Set([

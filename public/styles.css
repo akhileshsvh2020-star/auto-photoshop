@@ -175,6 +175,8 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 18px;
+  line-height: 18px;
 }
 
 .unit-picker {
@@ -184,7 +186,6 @@ label {
 }
 
 .unit-picker select {
-  min-height: 22px;
   appearance: none;
   border: 0;
   background: transparent;
@@ -193,6 +194,8 @@ label {
   font: inherit;
   font-weight: 900;
   letter-spacing: 0;
+  height: 18px;
+  line-height: 18px;
   padding: 0 18px 0 0;
   text-transform: uppercase;
 }
@@ -268,6 +271,11 @@ input[readonly] {
   display: grid;
   grid-template-columns: 0.75fr 1.25fr;
   gap: 14px;
+}
+
+.form-grid label {
+  grid-template-rows: 18px auto;
+  align-content: start;
 }
 
 .primary-button,

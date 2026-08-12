@@ -239,6 +239,35 @@ doc.exportDocument(outFile, ExportType.SAVEFORWEB, opts);
 
 function photoshopComScript() {
   return `
+function Get-PhotoshopExePaths {
+  $paths = New-Object System.Collections.Generic.List[string]
+  $appPathRoots = @(
+    "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Photoshop.exe",
+    "Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Photoshop.exe",
+    "Registry::HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\Photoshop.exe"
+  )
+
+  foreach ($path in $appPathRoots) {
+    try {
+      $exe = (Get-Item -LiteralPath $path -ErrorAction Stop).GetValue("")
+      if ($exe -and (Test-Path -LiteralPath $exe)) { $paths.Add([string]$exe) }
+    } catch {}
+  }
+
+  $programRoots = @($env:ProgramFiles, [Environment]::GetEnvironmentVariable("ProgramFiles(x86)"))
+  foreach ($root in $programRoots) {
+    if (-not $root) { continue }
+    try {
+      Get-ChildItem -LiteralPath $root -Filter "Photoshop.exe" -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match "Adobe Photoshop" } |
+        Sort-Object FullName -Descending |
+        ForEach-Object { $paths.Add($_.FullName) }
+    } catch {}
+  }
+
+  return $paths | Select-Object -Unique
+}
+
 function Get-PhotoshopApplication {
   $progIds = New-Object System.Collections.Generic.List[string]
   $progIds.Add("Photoshop.Application")
@@ -262,7 +291,15 @@ function Get-PhotoshopApplication {
   } catch {}
 
   $lastError = $null
-  foreach ($progId in ($progIds | Select-Object -Unique)) {
+  $uniqueProgIds = $progIds | Select-Object -Unique
+
+  foreach ($progId in $uniqueProgIds) {
+    try {
+      return [Runtime.InteropServices.Marshal]::GetActiveObject($progId)
+    } catch {}
+  }
+
+  foreach ($progId in $uniqueProgIds) {
     try {
       return New-Object -ComObject $progId
     } catch {
@@ -270,7 +307,24 @@ function Get-PhotoshopApplication {
     }
   }
 
-  throw "Photoshop COM automation is not available. Tried: $($progIds -join ', '). Last error: $lastError"
+  $photoshopExe = Get-PhotoshopExePaths | Select-Object -First 1
+  if ($photoshopExe) {
+    Start-Process -FilePath $photoshopExe | Out-Null
+    Start-Sleep -Seconds 8
+
+    foreach ($progId in $uniqueProgIds) {
+      try {
+        return [Runtime.InteropServices.Marshal]::GetActiveObject($progId)
+      } catch {}
+      try {
+        return New-Object -ComObject $progId
+      } catch {
+        $lastError = $_.Exception.Message
+      }
+    }
+  }
+
+  throw "Photoshop COM automation failed. Open Photoshop normally, close welcome/update popups, do not run Photoshop as Administrator, then try again. Tried COM IDs: $($uniqueProgIds -join ', '). Photoshop exe: $photoshopExe. Last error: $lastError"
 }
 
 $app = Get-PhotoshopApplication

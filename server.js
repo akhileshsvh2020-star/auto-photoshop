@@ -237,47 +237,93 @@ doc.exportDocument(outFile, ExportType.SAVEFORWEB, opts);
 `;
 }
 
+function photoshopComScript() {
+  return `
+function Get-PhotoshopApplication {
+  $progIds = New-Object System.Collections.Generic.List[string]
+  $progIds.Add("Photoshop.Application")
+
+  $curVerPaths = @(
+    "Registry::HKEY_CLASSES_ROOT\\Photoshop.Application\\CurVer",
+    "Registry::HKEY_CLASSES_ROOT\\WOW6432Node\\Photoshop.Application\\CurVer"
+  )
+  foreach ($path in $curVerPaths) {
+    try {
+      $curVer = (Get-Item -LiteralPath $path -ErrorAction Stop).GetValue("")
+      if ($curVer) { $progIds.Add([string]$curVer) }
+    } catch {}
+  }
+
+  try {
+    Get-ChildItem "Registry::HKEY_CLASSES_ROOT" -ErrorAction SilentlyContinue |
+      Where-Object { $_.PSChildName -match "^Photoshop\\.Application(\\.\\d+)?$" } |
+      Sort-Object PSChildName -Descending |
+      ForEach-Object { $progIds.Add($_.PSChildName) }
+  } catch {}
+
+  $lastError = $null
+  foreach ($progId in ($progIds | Select-Object -Unique)) {
+    try {
+      return New-Object -ComObject $progId
+    } catch {
+      $lastError = $_.Exception.Message
+    }
+  }
+
+  throw "Photoshop COM automation is not available. Tried: $($progIds -join ', '). Last error: $lastError"
+}
+
+$app = Get-PhotoshopApplication
+`;
+}
+
+function runPowerShell(command, timeout) {
+  const wrapped = [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    command,
+    "} catch {",
+    "  [Console]::Error.WriteLine($_.Exception.Message)",
+    "  exit 1",
+    "}"
+  ].join("; ");
+
+  return new Promise((resolve, reject) => {
+    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", wrapped], { timeout }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error((stderr || stdout || error.message).trim()));
+        return;
+      }
+      resolve(stdout);
+    });
+  });
+}
+
 function runPhotoshopJsx(jsx) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   const jsxPath = path.join(os.tmpdir(), `auto-photoshop-${Date.now()}.jsx`);
   fs.writeFileSync(jsxPath, jsx, "utf8");
 
   const psCommand = [
-    "$ErrorActionPreference = 'Stop'",
-    `$app = New-Object -ComObject Photoshop.Application`,
+    photoshopComScript(),
     "$app.Visible = $true",
     `$code = Get-Content -LiteralPath '${jsxPath.replace(/'/g, "''")}' -Raw`,
     "$app.DoJavaScript($code)"
   ].join("; ");
 
-  return new Promise((resolve, reject) => {
-    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psCommand], { timeout: 120000 }, (error, stdout, stderr) => {
+  return runPowerShell(psCommand, 120000)
+    .finally(() => {
       fs.rm(jsxPath, { force: true }, () => {});
-      if (error) {
-        reject(new Error(stderr || stdout || error.message));
-        return;
-      }
-      resolve();
     });
-  });
 }
 
 function openPhotoshop() {
   const psCommand = [
-    "$ErrorActionPreference = 'Stop'",
-    "$app = New-Object -ComObject Photoshop.Application",
+    photoshopComScript(),
     "$app.Visible = $true"
   ].join("; ");
 
-  return new Promise((resolve, reject) => {
-    execFile("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psCommand], { timeout: 30000 }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr || stdout || error.message));
-        return;
-      }
-      resolve();
-    });
-  });
+  return runPowerShell(psCommand, 30000);
 }
 
 function openOutputFolder() {
